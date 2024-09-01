@@ -1,0 +1,353 @@
+<html><head><base href="<alt>Un panel de control de trading personalizable con tema oscuro, usando un logo circular con las letras 'CEA' y llamas estilizadas en la parte superior derecha. La interfaz presenta un gráfico central de TradingView, análisis detallados a la izquierda incluyendo gráficos de correlación, datos económicos, análisis de flujo y un gráfico de estacionalidad. La columna derecha muestra análisis técnico, fundamental y de sentimiento del mercado para un par de divisas especificado por el usuario. El diseño está pensado para un análisis exhaustivo de divisas con una opción de entrada manual para el par de divisas con autocompletado funcional y un botón 'Analizar'. Los colores principales son tonos de verde azulado y rojo, inspirados en el logo.</alt>
+">
+<title>Panel de Control de Trading Avanzado - Análisis de Divisas Personalizado</title>
+<style>
+body { font-family: 'Poppins', sans-serif; background-color: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; }
+.dashboard { display: flex; height: calc(100vh - 40px); }
+.left-column, .right-column { width: 300px; background-color: #1e293b; border-radius: 10px; padding: 15px; overflow-y: auto; }
+.main-chart { flex-grow: 1; margin: 0 20px; }
+h1, h2, h3, h4 { color: #3dd6d0; }
+.chart-container { width: 100%; height: calc(100% - 100px); }
+.analysis-item { background-color: #2d3748; border-radius: 5px; padding: 10px; margin-bottom: 15px; }
+.indicator { display: inline-block; padding: 5px 10px; border-radius: 15px; font-size: 0.9em; font-weight: 600; margin-right: 5px; }
+.buy { background-color: #3dd6d0; color: #0f172a; }
+.sell { background-color: #ff6b6b; color: #0f172a; }
+.neutral { background-color: #f59e0b; color: #0f172a; }
+.current-price { font-size: 1.2em; font-weight: bold; color: #3dd6d0; margin-bottom: 15px; }
+.probability { font-weight: bold; color: #3dd6d0; }
+.mini-chart { width: 100%; height: 150px; margin-bottom: 15px; }
+#seasonalityChart { height: 250px; }
+#pairInput { width: calc(100% - 110px); padding: 10px; margin-bottom: 10px; background-color: #2d3748; color: #e2e8f0; border: none; border-radius: 5px; }
+#analyzeButton { width: 100px; padding: 10px; margin-bottom: 10px; background-color: #3dd6d0; color: #0f172a; border: none; border-radius: 5px; cursor: pointer; }
+#analyzeButton:hover { background-color: #2563eb; }
+.input-container { display: flex; justify-content: space-between; margin-bottom: 10px; position: relative; }
+.autocomplete-items { position: absolute; border: 1px solid #3dd6d0; border-top: none; z-index: 99; top: 100%; left: 0; right: 100px; max-height: 200px; overflow-y: auto; }
+.autocomplete-items div { padding: 10px; cursor: pointer; background-color: #1e293b; border-bottom: 1px solid #3dd6d0; }
+.autocomplete-items div:hover { background-color: #3dd6d0; color: #0f172a; }
+.autocomplete-active { background-color: #3dd6d0 !important; color: #0f172a; }
+.logo { width: 100px; height: 100px; margin-bottom: 20px; }
+</style>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="left-column">
+        <img src="https://raw.githubusercontent.com/EduardoArismendy/EduardoArismendy.github.io/9a7add5919731bdc6041a1b9737dc2ad4f70d8c6/hero2.png" alt="Logo CEA con llamas estilizadas" class="logo">
+        <h3>Análisis Detallados</h3>
+        <div class="analysis-item">
+            <h4>Correlaciones</h4>
+            <div id="correlationChart" class="mini-chart"></div>
+            <p id="correlationText"></p>
+        </div>
+        <div class="analysis-item">
+            <h4>Datos Económicos</h4>
+            <p>
+                PIB EE.UU. (último): 2.1%<br>
+                Tasa de Desempleo EE.UU.: 3.8%<br>
+                IPC EE.UU. (anual): 3.2%<br>
+                Tasa de Fondos FED: 5.25-5.50%
+            </p>
+        </div>
+        <div class="analysis-item">
+            <h4>Análisis de Flujo</h4>
+            <div id="flowChart" class="mini-chart"></div>
+            <p id="flowText"></p>
+        </div>
+        <div class="analysis-item">
+            <h4>Estacionalidad</h4>
+            <div id="seasonalityChart"></div>
+            <p id="seasonalityText"></p>
+        </div>
+    </div>
+
+    <div class="main-chart">
+        <div class="input-container">
+            <input type="text" id="pairInput" placeholder="Ingrese par de divisas (ej. EUR/USD)">
+            <div id="autocomplete-list" class="autocomplete-items"></div>
+            <button id="analyzeButton">Analizar</button>
+        </div>
+        <h2 id="pairTitle"></h2>
+        <div id="tradingview_chart" class="chart-container"></div>
+    </div>
+    
+    <div class="right-column">
+        <h3>Análisis de Divisas</h3>
+        <div id="currentPrice" class="current-price">Precio actual: Cargando...</div>
+        <div id="technicalAnalysis" class="analysis-item">
+            <h4>Análisis Técnico</h4>
+            <p id="technicalText"></p>
+        </div>
+        <div id="fundamentalAnalysis" class="analysis-item">
+            <h4>Análisis Fundamental</h4>
+            <p id="fundamentalText"></p>
+        </div>
+        <div id="marketSentiment" class="analysis-item">
+            <h4>Sentimiento del Mercado</h4>
+            <p id="sentimentText"></p>
+        </div>
+        <div id="highProbabilityTrades" class="analysis-item">
+            <h4>Entrada de Alta Probabilidad</h4>
+            <p id="tradeText"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let widget;
+
+    const currencyPairs = [
+        "EUR/USD", "USD/JPY", "GBP/USD", "USD/CHF", "USD/CAD", "AUD/USD", "NZD/USD"
+    ];
+
+    function autocomplete(inp, arr) {
+        var currentFocus;
+        inp.addEventListener("input", function(e) {
+            var a, b, i, val = this.value;
+            closeAllLists();
+            if (!val) { return false; }
+            currentFocus = -1;
+            a = document.getElementById("autocomplete-list");
+            a.innerHTML = '';
+            for (i = 0; i < arr.length; i++) {
+                if (arr[i].substr(0, val.length).toUpperCase() == val.toUpperCase()) {
+                    b = document.createElement("DIV");
+                    b.innerHTML = "<strong>" + arr[i].substr(0, val.length) + "</strong>";
+                    b.innerHTML += arr[i].substr(val.length);
+                    b.innerHTML += "<input type='hidden' value='" + arr[i] + "'>";
+                    b.addEventListener("click", function(e) {
+                        inp.value = this.getElementsByTagName("input")[0].value;
+                        closeAllLists();
+                    });
+                    a.appendChild(b);
+                }
+            }
+        });
+        inp.addEventListener("keydown", function(e) {
+            var x = document.getElementById("autocomplete-list");
+            if (x) x = x.getElementsByTagName("div");
+            if (e.keyCode == 40) {
+                currentFocus++;
+                addActive(x);
+            } else if (e.keyCode == 38) {
+                currentFocus--;
+                addActive(x);
+            } else if (e.keyCode == 13) {
+                e.preventDefault();
+                if (currentFocus > -1) {
+                    if (x) x[currentFocus].click();
+                }
+            }
+        });
+        function addActive(x) {
+            if (!x) return false;
+            removeActive(x);
+            if (currentFocus >= x.length) currentFocus = 0;
+            if (currentFocus < 0) currentFocus = (x.length - 1);
+            x[currentFocus].classList.add("autocomplete-active");
+        }
+        function removeActive(x) {
+            for (var i = 0; i < x.length; i++) {
+                x[i].classList.remove("autocomplete-active");
+            }
+        }
+        function closeAllLists(elmnt) {
+            var x = document.getElementsByClassName("autocomplete-items");
+            for (var i = 0; i < x.length; i++) {
+                if (elmnt != x[i] && elmnt != inp) {
+                    x[i].innerHTML = '';
+                }
+            }
+        }
+        document.addEventListener("click", function (e) {
+            closeAllLists(e.target);
+        });
+    }
+
+    autocomplete(document.getElementById("pairInput"), currencyPairs);
+
+    function initializeTradingViewWidget(symbol) {
+        if (widget) {
+            widget.remove();
+        }
+
+        widget = new TradingView.widget({
+            "width": "100%",
+            "height": "100%",
+            "symbol": "FX:" + symbol.replace('/', ''),
+            "interval": "D",
+            "timezone": "Etc/UTC",
+            "theme": "dark",
+            "style": "1",
+            "locale": "es",
+            "toolbar_bg": "#1e293b",
+            "enable_publishing": false,
+            "allow_symbol_change": true,
+            "container_id": "tradingview_chart",
+            "hide_side_toolbar": false,
+            "studies": [
+                "MASimple@tv-basicstudies",
+                "RSI@tv-basicstudies",
+                "MACD@tv-basicstudies",
+                "BB@tv-basicstudies"
+            ],
+            "overrides": {
+                "paneProperties.background": "#0f172a",
+                "paneProperties.vertGridProperties.color": "#1e293b",
+                "paneProperties.horzGridProperties.color": "#1e293b",
+                "scalesProperties.textColor" : "#e2e8f0",
+                "mainSeriesProperties.candleStyle.upColor": "#3dd6d0",
+                "mainSeriesProperties.candleStyle.downColor": "#ff6b6b",
+                "mainSeriesProperties.candleStyle.wickUpColor": "#3dd6d0",
+                "mainSeriesProperties.candleStyle.wickDownColor": "#ff6b6b"
+            }
+        });
+    }
+
+    function updateAnalysis(pair) {
+        $('#pairTitle').text('Análisis de ' + pair);
+        $('#currentPrice').text('Precio actual: ' + (Math.random() * 2 + 0.5).toFixed(4));
+
+        $('#technicalText').html(`
+            <span class="indicator buy">COMPRA FUERTE</span>
+            <br>RSI: ${(Math.random() * 100).toFixed(1)}
+            <br>MACD: ${(Math.random() * 0.01 - 0.005).toFixed(4)}
+            <br>EMA(200): ${(Math.random() * 2 + 0.5).toFixed(4)}
+            <br>Tendencia: Alcista
+            <br>Soporte mayor: ${(Math.random() * 2 + 0.5).toFixed(4)}
+            <br>Resistencia clave: ${(Math.random() * 2 + 0.5).toFixed(4)}
+            <br><span class="probability">Probabilidad: ${(Math.random() * 100).toFixed(0)}%</span>
+        `);
+
+        $('#fundamentalText').html(`
+            Diferencial de tipos de interés: ${(Math.random() * 5).toFixed(2)}%
+            <br>Crecimiento del PIB (YoY): ${(Math.random() * 5).toFixed(1)}%
+            <br>Inflación (YoY): ${(Math.random() * 10).toFixed(1)}%
+            <br>Balance comercial: ${(Math.random() * 20 - 10).toFixed(1)}B
+            <br><span class="probability">Impacto alcista: ${(Math.random() * 100).toFixed(0)}%</span>
+        `);
+
+        $('#sentimentText').html(`
+            Sentimiento general: Alcista
+            <br>Volumen: ${(Math.random() * 100).toFixed(1)}B unidades
+            <br>Volatilidad: ${(Math.random() * 10).toFixed(1)}%
+            <br>Posiciones de traders: ${Math.floor(Math.random() * 70)}% Largos, ${Math.floor(Math.random() * 30)}% Cortos
+            <br>Flujo institucional: ${(Math.random() * 10 - 5).toFixed(1)}B (7d)
+            <br><span class="probability">Fiabilidad: ${(Math.random() * 100).toFixed(0)}%</span>
+        `);
+
+        $('#tradeText').html(`
+            Dirección: LARGO
+            <br>Precio de entrada: <span class="entry-point">${(Math.random() * 2 + 0.5).toFixed(4)}</span>
+            <br>Stop Loss: <span class="stop-loss">${(Math.random() * 2 + 0.5).toFixed(4)}</span>
+            <br>Toma de Beneficios 1: <span class="take-profit">${(Math.random() * 2 + 0.5).toFixed(4)}</span>
+            <br>Toma de Beneficios 2: <span class="take-profit">${(Math.random() * 2 + 0.5).toFixed(4)}</span>
+            <br>Ratio Riesgo/Beneficio: 1:${(Math.random() * 5).toFixed(1)}
+            <br><span class="probability">Probabilidad de éxito: ${(Math.random() * 100).toFixed(0)}%</span>
+        `);
+
+        $('#correlationText').html(`
+            ${pair} vs USD/JPY: ${(Math.random()).toFixed(2)}<br>
+            ${pair} vs GBP/USD: ${(Math.random()).toFixed(2)}<br>
+            ${pair} vs AUD/USD: ${(Math.random()).toFixed(2)}
+        `);
+
+        $('#flowText').html(`
+            Flujos institucionales: $${(Math.random() * 10).toFixed(1)}B (7d)<br>
+            Flujos minoristas: $${(Math.random() * 2).toFixed(1)}B (7d)<br>
+            Cambio en posiciones cortas: ${(Math.random() * 100 - 50).toFixed(1)}% (30d)
+        `);
+
+        $('#seasonalityText').html(`
+            Rendimiento promedio este mes: ${(Math.random() * 10 - 5).toFixed(1)}%<br>
+            Mejor mes: ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][Math.floor(Math.random() * 12)]} (+${(Math.random() * 20).toFixed(1)}%)<br>
+            Peor mes: ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][Math.floor(Math.random() * 12)]} (-${(Math.random() * 20).toFixed(1)}%)
+        `);
+
+        updateCorrelationChart();
+        updateFlowChart();
+        updateSeasonalityChart();
+    }
+
+    function updateCorrelationChart() {
+        var correlationData = [{
+            x: ['USD/JPY', 'GBP/USD', 'AUD/USD'],
+            y: [Math.random(), Math.random(), Math.random()],
+            type: 'bar',
+            marker: {color: ['#3dd6d0', '#3dd6d0', '#3dd6d0']}
+        }];
+
+        var correlationLayout = {
+            title: 'Correlaciones de Divisas',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: {color: '#e2e8f0'},
+            margin: {t:30, b:20, l:30, r:30}
+        };
+
+        Plotly.newPlot('correlationChart', correlationData, correlationLayout, {displayModeBar: false});
+    }
+
+    function updateFlowChart() {
+        var flowData = [{
+            x: ['Institucional', 'Minorista', 'Posiciones Cortas'],
+            y: [Math.random() * 10, Math.random() * 5, Math.random() * 20 - 10],
+            type: 'bar',
+            marker: {color: ['#3dd6d0', '#3dd6d0', '#ff6b6b']}
+        }];
+
+        var flowLayout = {
+            title: 'Análisis de Flujo (7d)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: {color: '#e2e8f0'},
+            margin: {t:30, b:20, l:30, r:30}
+        };
+
+        Plotly.newPlot('flowChart', flowData, flowLayout, {displayModeBar: false});
+    }
+
+    function updateSeasonalityChart() {
+        var seasonalityData = [{
+            x: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+            y: Array(12).fill().map(() => Math.random() * 20 - 10),
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: {color: '#3dd6d0'}
+        }];
+
+        var seasonalityLayout = {
+            title: 'Estacionalidad de Divisas',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: {color: '#e2e8f0'},
+            margin: {t:30, b:40, l:40, r:30},
+            xaxis: {
+                tickangle: -45,
+                tickfont: {size: 10}
+            },
+            yaxis: {
+                title: 'Rendimiento (%)',
+                titlefont: {size: 12}
+            }
+        };
+
+        Plotly.newPlot('seasonalityChart', seasonalityData, seasonalityLayout, {displayModeBar: false});
+    }
+
+    $('#analyzeButton').on('click', function() {
+        let pair = $('#pairInput').val().toUpperCase();
+        if (pair) {
+            initializeTradingViewWidget(pair);
+            updateAnalysis(pair);
+        }
+    });
+
+    initializeTradingViewWidget('EUR/USD');
+    updateAnalysis('EUR/USD');
+});
+</script>
+</body></html>
